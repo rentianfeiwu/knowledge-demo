@@ -1,18 +1,21 @@
 import axios from 'axios'
 import { message } from 'ant-design-vue'
 
-// 创建 axios 实例
+// Create axios instance
 const request = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '/api', // 使用代理路径
+  baseURL: '',  // 移除 /api 前缀，因为已经在 vite 配置中处理了
   timeout: 60000,
   withCredentials: true
 })
 
-// 请求拦截器
+// 直接在请求拦截器中处理
 request.interceptors.request.use(
   config => {
-    // 添加自定义请求头
     config.headers['X-Requested-With'] = 'XMLHttpRequest'
+    // 在开发环境中禁用 SSL 验证
+    if (process.env.NODE_ENV === 'development') {
+      config.validateStatus = () => true
+    }
     return config
   },
   error => {
@@ -38,4 +41,4 @@ request.interceptors.response.use(
   }
 )
 
-export default request 
+export default request

@@ -24,6 +24,16 @@
 - Python 3.8+
 - 百度语音识别API密钥（可选）
 
+### 防火墙
+# 开放前端端口
+sudo firewall-cmd --permanent --add-port=5173/tcp
+
+# 开放后端端口
+sudo firewall-cmd --permanent --add-port=8000/tcp
+
+# 重新加载防火墙配置
+sudo firewall-cmd --reload
+
 ### 安装依赖
 
 1. 安装后端依赖
@@ -42,14 +52,18 @@ npm install
 BAIDU_API_KEY=您的百度API密钥
 BAIDU_SECRET_KEY=您的百度Secret密钥
 
-启动服务
+### 启动服务
 使用一键启动脚本：
-```bash
+
+设置执行权限：
+chmod +x start.sh
+
+启动服务：
 ./start.sh
 
 或者分别启动：
 - 后端： cd backend && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-- 前端： cd frontend && npm run dev
+- 前端： cd frontend && npm run dev -- --host 0.0.0.0
 
 使用说明
 1. 访问前端页面： http://localhost:5173/base-demo

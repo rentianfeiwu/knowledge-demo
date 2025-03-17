@@ -252,11 +252,21 @@ class BaiduSpeechService {
     if (this.isListening) return;
     
     try {
+      // 检查是否支持 getUserMedia
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('浏览器不支持音频输入');
+      }
+
       this.isListening = true;
       this.audioData = [];
       
       // 请求麦克风权限
-      this.mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      this.mediaStream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true
+        } 
+      });
       
       // 创建MediaRecorder
       this.recorder = new MediaRecorder(this.mediaStream);
@@ -283,10 +293,11 @@ class BaiduSpeechService {
           const formData = new FormData();
           formData.append('audio', audioBlob);
           
-          // 修改API路径，确保包含/api前缀
+          // 修改请求配置
           const response = await fetch('/api/speech/speech-to-text', {
             method: 'POST',
-            body: formData
+            body: formData,
+            credentials: 'include'  // 添加凭证支持
           });
           
           if (!response.ok) {
@@ -315,10 +326,16 @@ class BaiduSpeechService {
       }, 30000);
       
       message.success('开始录音，请说话...');
-    } catch (error) {
+    } catch (error: any) {
       console.error('录音失败:', error);
       this.isListening = false;
-      onError('not-allowed');
+      if (error.name === 'NotAllowedError') {
+        onError('not-allowed');
+      } else if (error.name === 'NotFoundError') {
+        onError('device-not-found');
+      } else {
+        onError('initialization-error');
+      }
     }
   }
   
@@ -465,6 +482,12 @@ const handleSpeechError = (error: string) => {
   switch (error) {
     case 'not-allowed':
       message.error('请允许使用麦克风权限');
+      break;
+    case 'device-not-found':
+      message.error('未找到麦克风设备');
+      break;
+    case 'initialization-error':
+      message.error('录音初始化失败，请检查浏览器设置');
       break;
     case 'network':
       message.error('网络连接异常');
