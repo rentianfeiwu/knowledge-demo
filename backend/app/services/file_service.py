@@ -194,7 +194,7 @@ if __name__ == "__main__":
     
     # 测试搜索
     print("\n=== 测试搜索 ===")
-    query = "光子嫩肤3次卡，现金"
+    query = "工作报告"
     print(f"搜索查询: {query}")
     results = fs.search(query)
     print(f"搜索结果数量: {len(results)}")

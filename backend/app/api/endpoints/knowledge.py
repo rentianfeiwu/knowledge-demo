@@ -23,18 +23,32 @@ async def search_documents(query: str):
         
         # 使用AI生成回答
         if search_results:
-            # 只使用最相关的前3个文档
-            context = "\n".join(f"文件名：{r['filename']}\n内容：{r['content']}" 
-                              for r in search_results[:3])
-            prompt = f"基于以下内容回答问题：{query}\n\n参考内容：{context}"
+            # 按相关度排序并只使用前3个最相关的文档
+            sorted_results = sorted(search_results, key=lambda x: x["score"], reverse=True)[:3]
+            
+            # 构建上下文，包含相关度信息
+            context = []
+            for idx, r in enumerate(sorted_results, 1):
+                context.append(
+                    f"文档{idx}（相关度：{r['score']:.2f}）：\n"
+                    f"文件名：{r['filename']}\n"
+                    f"内容：{r['content']}\n"
+                )
+            
+            # 组合提示词
+            prompt = (
+                f"请基于以下按相关度排序的文档内容回答问题：{query}\n\n"
+                f"参考文档：\n{''.join(context)}\n"
+                f"请优先参考相关度更高的文档进行回答。"
+            )
+            
             ai_response = await ai_service.get_response(prompt)
             
             return {
                 "ai_response": ai_response,
-                "search_results": search_results
+                "search_results": sorted_results  # 返回排序后的结果
             }
         
-        # 如果没有找到文档，返回空结果而不是消息
         return {
             "ai_response": None,
             "search_results": []
@@ -58,4 +72,4 @@ async def rebuild_index():
         file_service.rebuild_index()
         return {"message": "索引重建成功"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e)) 
+        raise HTTPException(status_code=500, detail=str(e))
