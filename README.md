@@ -44,6 +44,7 @@ pip install -r requirements.txt
 
 2. 安装前端依赖
 ```bash
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.2/install.sh | bash
 cd frontend
 npm install
 

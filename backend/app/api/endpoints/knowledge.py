@@ -18,35 +18,26 @@ async def upload_file(file: UploadFile = File(...)):
 @router.get("/search")
 async def search_documents(query: str):
     try:
-        # 搜索文档
         search_results = file_service.search(query)
         
-        # 使用AI生成回答
         if search_results:
-            # 按相关度排序并只使用前3个最相关的文档
-            sorted_results = sorted(search_results, key=lambda x: x["score"], reverse=True)[:3]
+            # 只取相关度最高的文档
+            best_match = max(search_results, key=lambda x: x["score"])
             
-            # 构建上下文，包含相关度信息
-            context = []
-            for idx, r in enumerate(sorted_results, 1):
-                context.append(
-                    f"文档{idx}（相关度：{r['score']:.2f}）：\n"
-                    f"文件名：{r['filename']}\n"
-                    f"内容：{r['content']}\n"
-                )
-            
-            # 组合提示词
+            # 构建提示词
             prompt = (
-                f"请基于以下按相关度排序的文档内容回答问题：{query}\n\n"
-                f"参考文档：\n{''.join(context)}\n"
-                f"请优先参考相关度更高的文档进行回答。"
+                f"问题：{query}\n\n"
+                f"参考文档（相关度：{best_match['score']:.2f}）：\n"
+                f"标题：{best_match['filename']}\n"
+                f"内容：{best_match['content']}\n\n"
+                "请根据上述文档内容回答问题。回答要简明扼要，并在末尾标注文档来源。"
             )
             
             ai_response = await ai_service.get_response(prompt)
             
             return {
                 "ai_response": ai_response,
-                "search_results": sorted_results  # 返回排序后的结果
+                "search_results": [best_match]
             }
         
         return {

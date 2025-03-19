@@ -14,4 +14,8 @@ nohup npm run dev -- --host 0.0.0.0 > frontend.log 2>&1 &
 
 echo "服务已启动!"
 echo "后端地址: https://192.168.2.100:8000"
+<<<<<<< HEAD
 echo "前端地址: https://192.168.2.100:5173"
+=======
+echo "前端地址: https://192.168.2.100:5173"
+>>>>>>> a19c7ac7281d3669f50ea63b9136171ee8f7d738

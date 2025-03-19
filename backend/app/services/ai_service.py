@@ -4,7 +4,7 @@ import ollama
 
 class AIService:
     def __init__(self):
-        self.model = "deepseek-r1:1.5b"
+        self.model = "deepseek-r1:7b"
         self.timeout = 55  # 设置55秒超时
     
     async def get_response(self, prompt: str, context: list = None) -> str:
@@ -22,14 +22,19 @@ class AIService:
             raise HTTPException(status_code=500, detail=f"AI服务出现错误: {str(e)}")
     
     async def _get_ollama_response(self, prompt: str, context: list = None) -> str:
-        content_beauty = "你是一个专业的美业顾问，请用专业且友善的语气回答，并且所有回答用中文。"
-        content_base = "#### 定位\n- 智能助手名称 ：政务智能助手\n- 主要任务 ：对输入的内容进行分析，并用严谨且友善的语气，给出相应的回答。\n\n#### 能力\n- 文本分析 ：能够准确分析文档内容。\n\n#### 知识储备\n- 政务知识 ：\n  - 政治\n  - 经济\n  - 科技\n  - 城市治理\n  - 数据分析\n  - 教育\n  - 健康\n  - 国际\n  - 国内\n  - 社会\n\n#### 使用说明\n- 输入 ：相关政务文本。\n- 输出 ：只用言简意赅总结内容，不需要额外解释。回答的内容全部用中文输出。"
+        content_base =  """#### 定位
+                        - 智能助手名称：政务智能助手
+                        - 主要任务：分析文档内容，提供准确的回答
+
+                        #### 回答要求
+                        1. 仔细阅读所有提供的文档内容
+                        2. 保持回答简洁明了
+                        3. 在回答末尾标注使用的文档来源
+                        """
         response = ollama.chat(
             model=self.model,
             messages=[
                 {"role": "system", "content": content_base},
-                *[{"role": "user" if i % 2 == 0 else "assistant", "content": msg} 
-                  for i, msg in enumerate(context or [])],
                 {"role": "user", "content": prompt}
             ]
         )
