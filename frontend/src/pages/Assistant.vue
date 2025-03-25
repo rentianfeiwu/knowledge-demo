@@ -22,7 +22,7 @@
           placeholder="请输入您的问题..."
           @keyup.enter="sendMessage"
           :disabled="loading"
-          style="width: calc(100% - 100px)"
+          style="width: calc(100% - 160px)"
         />
         <a-button 
           type="primary" 
@@ -30,6 +30,14 @@
           @click="sendMessage"
         >
           发送
+        </a-button>
+        <a-button
+          type="primary"
+          :loading="isRecording"
+          @click="toggleRecording"
+          style="margin-left: 8px"
+        >
+          {{ isRecording ? '停止录音' : '语音输入' }}
         </a-button>
       </a-input-group>
     </div>
@@ -40,9 +48,58 @@
 import { ref, onMounted, nextTick } from 'vue'
 import { message } from 'ant-design-vue'
 import { chatWithAssistant } from '@/api/assistant'
+import { speechToText } from '@/api/speech'
 
 const inputMessage = ref('')
 const loading = ref(false)
+const isRecording = ref(false)
+const mediaRecorder = ref<MediaRecorder | null>(null)
+const audioChunks = ref<Blob[]>([])
+
+const toggleRecording = async () => {
+  if (isRecording.value) {
+    stopRecording()
+  } else {
+    startRecording()
+  }
+}
+
+const startRecording = async () => {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    mediaRecorder.value = new MediaRecorder(stream)
+    audioChunks.value = []
+    
+    mediaRecorder.value.ondataavailable = (event) => {
+      audioChunks.value.push(event.data)
+    }
+    
+    mediaRecorder.value.onstop = async () => {
+      const audioBlob = new Blob(audioChunks.value, { type: 'audio/wav' })
+      const audioFile = new File([audioBlob], 'recording.wav')
+      
+      try {
+        const response = await speechToText(audioFile)
+        inputMessage.value = response.data.text
+      } catch (error) {
+        message.error('语音识别失败')
+      }
+    }
+    
+    mediaRecorder.value.start()
+    isRecording.value = true
+  } catch (error) {
+    message.error('无法访问麦克风')
+  }
+}
+
+const stopRecording = () => {
+  if (mediaRecorder.value) {
+    mediaRecorder.value.stop()
+    mediaRecorder.value.stream.getTracks().forEach(track => track.stop())
+    isRecording.value = false
+  }
+}
 const messages = ref<Array<{role: 'user' | 'assistant', content: string}>>([])
 const messagesContainer = ref<HTMLElement>()
 
@@ -132,4 +189,4 @@ onMounted(() => {
   color: #666;
   font-size: 14px;
 }
-</style> 
+</style>

@@ -16,15 +16,42 @@ async def upload_file(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/search")
-async def search_documents(query: str):
+async def search_documents(
+    query: str,
+    search_type: str = "hybrid",  # hybrid, fulltext, semantic
+    file_type: Optional[str] = None,
+    sort_by: str = "relevance",
+    order: str = "desc"
+):
     try:
-        search_results = file_service.search(query)
+        # 基础搜索
+        search_results = file_service.search(
+            query,
+            search_type=search_type
+        )
         
-        if search_results:
-            # 只取相关度最高的文档
-            best_match = max(search_results, key=lambda x: x["score"])
+        # 按文件类型过滤
+        if file_type:
+            search_results = [
+                r for r in search_results 
+                if r["filename"].lower().endswith(file_type.lower())
+            ]
+        
+        # 排序处理
+        if sort_by == "date":
+            search_results.sort(
+                key=lambda x: os.path.getmtime(x["file_path"]),
+                reverse=(order == "desc")
+            )
+        elif sort_by == "relevance" and order == "asc":
+            search_results.sort(key=lambda x: x["score"])
             
-            # 构建提示词
+        if search_results:
+            # 只保留相关度最高的两条记录
+            search_results = sorted(search_results, key=lambda x: x["score"], reverse=True)[:2]
+            
+            # 构建 AI 响应
+            best_match = search_results[0]  # 直接使用第一条记录作为最佳匹配
             prompt = (
                 f"问题：{query}\n\n"
                 f"参考文档（相关度：{best_match['score']:.2f}）：\n"
@@ -37,7 +64,7 @@ async def search_documents(query: str):
             
             return {
                 "ai_response": ai_response,
-                "search_results": [best_match]
+                "search_results": search_results
             }
         
         return {

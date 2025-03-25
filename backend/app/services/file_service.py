@@ -10,6 +10,8 @@ from datetime import datetime
 import shutil
 from jieba.analyse import ChineseAnalyzer  # 添加中文分词支持
 from pathlib import Path
+from app.services.vector_store import vector_store
+import uuid
 
 class FileService:
     def __init__(self):
@@ -76,8 +78,8 @@ class FileService:
 
     def _index_document(self, file_path: str, content: str):
         print(f"正在创建索引: {os.path.basename(file_path)}")
-        print(f"内容长度: {len(content)} 字符")
         
+        # 创建全文索引
         ix = open_dir(self.index_dir)
         with ix.writer() as writer:
             writer.delete_by_term('file_path', file_path)
@@ -86,52 +88,105 @@ class FileService:
                 filename=os.path.basename(file_path),
                 content=content
             )
+        
+        # 添加到向量数据库
+        doc_id = str(uuid.uuid4())
+        vector_store.add_document(
+            doc_id=doc_id,
+            content=content,
+            metadata={
+                'file_path': file_path,
+                'filename': os.path.basename(file_path)
+            }
+        )
 
-    def search(self, query_string: str, limit: int = 10) -> List[dict]:
+    def search(self, query_string: str, limit: int = 10, search_type: str = "hybrid") -> List[dict]:
+        results = []
+        
+        if search_type in ["hybrid", "fulltext"]:
+            # 全文搜索结果
+            fulltext_results = self._fulltext_search(query_string, limit)
+            results.extend(fulltext_results)
+            
+        if search_type in ["hybrid", "semantic"]:
+            # 语义搜索结果
+            semantic_results = self._semantic_search(query_string, limit)
+            results.extend(semantic_results)
+            
+        # 去重并按相关度排序
+        unique_results = self._deduplicate_results(results)
+        return sorted(unique_results, key=lambda x: x["score"], reverse=True)[:limit]
+
+    def _fulltext_search(self, query_string: str, limit: int) -> List[dict]:
+        # 原有的全文搜索逻辑
         ix = open_dir(self.index_dir)
         with ix.searcher() as searcher:
-            # 打印索引内容
-            print("当前索引中的所有文档:")
-            for doc in searcher.all_stored_fields():
-                print(f"- {doc['filename']}: {doc['content'][:100]}...")
+            # 使用 MultifieldParser 支持多字段搜索
+            from whoosh.qparser import MultifieldParser
+            multifield_parser = MultifieldParser(["filename", "content"], ix.schema, group=OrGroup)
+            multifield_query = multifield_parser.parse(query_string)
             
-            # 使用 OrGroup 来匹配任意字段
-            filename_query = QueryParser("filename", ix.schema, group=OrGroup).parse(query_string)
-            content_query = QueryParser("content", ix.schema, group=OrGroup).parse(query_string)
+            # 创建高亮器
+            from whoosh.highlight import Highlighter, ContextFragmenter, HtmlFormatter
+            formatter = HtmlFormatter(tagname="mark", classname="search-highlight")
+            fragmenter = ContextFragmenter(maxchars=300, surround=50)
+            highlighter = Highlighter(fragmenter=fragmenter, formatter=formatter)
             
-            # 分别搜索文件名和内容
-            filename_results = searcher.search(filename_query, limit=limit)
-            content_results = searcher.search(content_query, limit=limit)
+            # 获取搜索结果
+            results = searcher.search(multifield_query, limit=limit)
             
-            # 合并结果并去重
-            seen = set()
-            results = []
+            search_results = []
+            for hit in results:
+                # 使用高亮器处理内容
+                content_highlights = highlighter.highlight_hit(
+                    hit, "content",
+                    text=hit.get("content", "")
+                )
+                filename_highlights = highlighter.highlight_hit(
+                    hit, "filename",
+                    text=hit.get("filename", "")
+                )
+                
+                search_results.append({
+                    "file_path": hit["file_path"],
+                    "filename": filename_highlights or hit["filename"],
+                    "content": content_highlights or hit["content"][:300],
+                    "score": hit.score,
+                    "match_type": "content" if content_highlights else "filename"
+                })
             
-            for r in filename_results:
-                if r["file_path"] not in seen:
-                    seen.add(r["file_path"])
-                    results.append({
-                        "file_path": r["file_path"],
-                        "filename": r["filename"],
-                        "content": r["content"],
-                        "score": r.score,
-                        "match_type": "filename"
-                    })
-            
-            for r in content_results:
-                if r["file_path"] not in seen:
-                    seen.add(r["file_path"])
-                    results.append({
-                        "file_path": r["file_path"],
-                        "filename": r["filename"],
-                        "content": r["content"],
-                        "score": r.score,
-                        "match_type": "content"
-                    })
-            
-            # 按相关度排序
-            results.sort(key=lambda x: x["score"], reverse=True)
-            return results[:limit]
+            return search_results
+
+    def _semantic_search(self, query_string: str, limit: int) -> List[dict]:
+        results = vector_store.semantic_search(query_string, limit)
+        
+        search_results = []
+        for idx, (doc, score, metadata) in enumerate(zip(
+            results['documents'][0],
+            results['distances'][0],
+            results['metadatas'][0]
+        )):
+            search_results.append({
+                "file_path": metadata["file_path"],
+                "filename": metadata["filename"],
+                "content": doc[:300],  # 截取前300个字符
+                "score": 1 - score,  # 转换距离为相似度分数
+                "match_type": "semantic"
+            })
+        
+        return search_results
+
+    def _deduplicate_results(self, results: List[dict]) -> List[dict]:
+        seen = set()
+        unique_results = []
+        
+        for result in results:
+            file_path = result["file_path"]
+            if file_path not in seen:
+                seen.add(file_path)
+                unique_results.append(result)
+        
+        return unique_results
 
     def get_file_list(self, page: int = 1, page_size: int = 10) -> Dict:
         """获取已上传的文件列表"""

@@ -36,11 +36,14 @@ export const uploadFile = (formData: FormData, onProgress?: (progressEvent: any)
   })
 }
 
-export const searchDocuments = async (query: string): Promise<SearchResponse> => {
+export const searchDocuments = async (query: string, searchType: string = 'hybrid'): Promise<SearchResponse> => {
   const response = await request<SearchResponse>({
     url: '/api/knowledge/search',
     method: 'get',
-    params: { query }
+    params: {
+      query,
+      search_type: searchType
+    }
   });
   return response.data;
 };

@@ -9,6 +9,7 @@ import Assistant from './pages/Assistant.vue'
 import Knowledge from './pages/Knowledge.vue'
 import Analytics from './pages/Analytics.vue'
 import BaseDemo from './pages/BaseDemo.vue'
+import DocumentList from './pages/DocumentList.vue'
 
 // 创建路由实例
 const router = createRouter({
@@ -37,6 +38,11 @@ const router = createRouter({
       path: '/base-demo',
       name: 'base-demo',
       component: BaseDemo
+    },
+    {
+      path: '/document-list',
+      name: 'document-list',
+      component: DocumentList
     }
   ]
 })

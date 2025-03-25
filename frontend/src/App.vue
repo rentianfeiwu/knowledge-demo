@@ -27,6 +27,12 @@
             </template>
             <span>数据分析</span>
           </a-menu-item>
+          <a-menu-item key="document-list">
+            <template #icon>
+              <folder-outlined />
+            </template>
+            <span>文档管理</span>
+          </a-menu-item>
         </a-menu>
       </a-layout-sider>
     </template>

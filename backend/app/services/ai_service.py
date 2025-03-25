@@ -1,10 +1,14 @@
-import asyncio
 from fastapi import HTTPException
+from openai import OpenAI
 import ollama
+import asyncio
 
 class AIService:
     def __init__(self):
-        self.model = "deepseek-r1:7b"
+        # self.model = "deepseek-r1:7b"
+        self.api_key = "sk-e7226e97a98443b8b8fcfa310e9a7767"
+        self.client = OpenAI(api_key=self.api_key, base_url="https://api.deepseek.com")
+        self.model = "deepseek-chat"
         self.timeout = 55  # 设置55秒超时
     
     async def get_response(self, prompt: str, context: list = None) -> str:
@@ -31,14 +35,14 @@ class AIService:
                         2. 保持回答简洁明了
                         3. 在回答末尾标注使用的文档来源
                         """
-        response = ollama.chat(
+        response = self.client.chat.completions.create(
             model=self.model,
             messages=[
                 {"role": "system", "content": content_base},
                 {"role": "user", "content": prompt}
             ]
         )
-        return response['message']['content']
+        return response.choices[0].message.content
 
 
 # 测试

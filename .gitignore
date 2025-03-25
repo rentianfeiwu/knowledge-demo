@@ -45,6 +45,7 @@ coverage/
 /backend/data/
 /backend/uploads/
 /backend/index/
+/backend/file_index/
 
 # 日志
 *.log

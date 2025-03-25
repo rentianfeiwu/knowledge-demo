@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
-from app.api.endpoints import assistant, knowledge, analytics, speech
+from app.api.endpoints import assistant, knowledge, analytics, speech, whisper
 from app.core.services import file_service
 from app.core.config import settings
 import time
@@ -33,7 +33,8 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup_event():
     """服务启动时自动重建索引"""
-    print("=== 服务启动，开始重建索引 ===")
+    
+    print(f"=== 服务启动，开始重建索引 {time.ctime()} ===")
     try:
         file_service.rebuild_index()
         print("=== 索引重建完成 ===")
@@ -49,7 +50,8 @@ app.include_router(assistant.router, prefix="/api", tags=["assistant"])
 app.include_router(knowledge.router, prefix="/api/knowledge", tags=["knowledge"])
 app.include_router(analytics.router, prefix="/api/analytics", tags=["analytics"])
 # 修正：直接使用app注册speech路由
-app.include_router(speech.router, prefix="/api/speech", tags=["speech"])
+# app.include_router(speech.router, prefix="/api/speech", tags=["speech"])
+app.include_router(whisper.router, prefix="/api/whisper", tags=["whisper"])
 
 if __name__ == "__main__":
     import uvicorn

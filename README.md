@@ -63,7 +63,7 @@ chmod +x start.sh
 ./start.sh
 
 或者分别启动：
-- 后端： cd backend && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+- 后端： cd backend && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 --ssl-keyfile key.pem --ssl-certfile cert.pem
 - 前端： cd frontend && npm run dev -- --host 0.0.0.0
 
 使用说明
